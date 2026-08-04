@@ -1,0 +1,13 @@
+{
+  "name": "brain-canvas",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node esbuild.config.mjs --watch",
+    "build": "node esbuild.config.mjs"
+  },
+  "devDependencies": {
+    "obsidian": "latest",
+    "esbuild": "latest",
+    "typescript": "latest"
+  }
+}

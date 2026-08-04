@@ -1,0 +1,9 @@
+{
+  "id": "brain-canvas",
+  "name": "Brain Canvas",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "A The Brain-style canvas where notes are linked through a 'parents' frontmatter property.",
+  "author": "You",
+  "isDesktopOnly": false
+}

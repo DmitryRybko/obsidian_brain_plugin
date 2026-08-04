@@ -1,0 +1,184 @@
+.brain-root {
+  padding: 0;
+  height: 100%;
+}
+
+.brain-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.brain-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.brain-link {
+  stroke: var(--text-muted);
+  stroke-width: 1px;
+  fill: none;
+}
+
+.brain-link-temp {
+  stroke-dasharray: 4 3;
+  stroke: var(--text-accent);
+}
+
+.brain-node-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.brain-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.brain-label {
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+  /* children: truncate with ellipsis */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  user-select: none;
+}
+
+.brain-label:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Central element: always wrap if long */
+.brain-central .brain-label {
+  font-weight: 600;
+  border-color: var(--text-accent);
+  background: var(--background-primary-alt);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: center;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Child tooltip on hover: show full name */
+.brain-node:not(.brain-central) .brain-label {
+  position: relative;
+}
+
+.brain-node:not(.brain-central) .brain-label::after {
+  content: attr(data-fullname);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  padding: 4px 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-size: var(--font-ui-smaller);
+  font-weight: normal;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: center;
+  max-width: 260px;
+  min-width: 100px;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.brain-node:not(.brain-central) .brain-label:hover::after {
+  opacity: 1;
+}
+
+.brain-point {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--background-primary);
+  border: 1px solid var(--text-muted);
+  cursor: crosshair;
+}
+
+.brain-point:hover {
+  background: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+.brain-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+}
+
+.brain-point-connected {
+  background-color: var(--text-muted);
+  border-color: var(--interactive-accent);
+}
+
+.brain-point-top {
+  margin-bottom: -3px;
+}
+
+.brain-point-bottom {
+  margin-top: -3px;
+}
+
+.brain-history {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 6px 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.brain-history-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  justify-content: flex-end; /* keeps newest visually toward the right edge */
+  scrollbar-width: thin;
+}
+
+.brain-history-item {
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.brain-history-item:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
