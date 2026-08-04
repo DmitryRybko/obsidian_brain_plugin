@@ -182,3 +182,9 @@
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
 }
+
+/* Lift the history strip above Obsidian's bottom menu on mobile.
+   Overridden inline by the "Mobile history offset" plugin setting. */
+body.is-mobile .brain-history {
+  bottom: 60px;
+}

@@ -1,4 +1,15 @@
-import { App, ItemView, MarkdownView, Modal, Platform, Plugin, PluginSettingTab, Setting, TFile, WorkspaceLeaf, } from "obsidian";
+import {
+	App,
+	ItemView,
+	MarkdownView,
+	Modal,
+	Platform,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TFile,
+	WorkspaceLeaf,
+} from "obsidian";
 
 export const VIEW_TYPE_BRAIN = "brain-canvas-view";
 
@@ -6,10 +17,12 @@ export const VIEW_TYPE_BRAIN = "brain-canvas-view";
 
 interface BrainCanvasSettings {
 	useCurvedLinks: boolean;
+	mobileHistoryOffset: number;
 }
 
 const DEFAULT_SETTINGS: BrainCanvasSettings = {
 	useCurvedLinks: true,
+	mobileHistoryOffset: 60,
 };
 
 /* ------------------------- helpers ------------------------- */
@@ -31,7 +44,11 @@ class NewNoteModal extends Modal {
 	private value = "";
 	private inputEl: HTMLInputElement | null = null;
 
-	constructor(app: App, suggestions: string[], onSubmit: (name: string) => void) {
+	constructor(
+		app: App,
+		suggestions: string[],
+		onSubmit: (name: string) => void
+	) {
 		super(app);
 		this.suggestions = suggestions;
 		this.onSubmit = onSubmit;
@@ -48,7 +65,8 @@ class NewNoteModal extends Modal {
 		if (this.suggestions.length > 0) {
 			const datalist = contentEl.createEl("datalist");
 			datalist.id = listId;
-			for (const s of this.suggestions) datalist.createEl("option", { value: s });
+			for (const s of this.suggestions)
+				datalist.createEl("option", { value: s });
 		}
 
 		new Setting(contentEl).addText((text) => {
@@ -101,10 +119,8 @@ export class BrainView extends ItemView {
 	private currentFile: TFile | null = null;
 	private pointEls: Map<string, HTMLElement> = new Map();
 	private resizeObserver: ResizeObserver | null = null;
-
 	private recentPaths: string[] = [];
 	private readonly historyLimit = 20;
-
 	private drag: {
 		active: boolean;
 		sourcePath: string;
@@ -113,13 +129,13 @@ export class BrainView extends ItemView {
 		startX: number;
 		startY: number;
 	} = {
-			active: false,
-			sourcePath: "",
-			direction: "bottom",
-			line: null,
-			startX: 0,
-			startY: 0,
-		};
+		active: false,
+		sourcePath: "",
+		direction: "bottom",
+		line: null,
+		startX: 0,
+		startY: 0,
+	};
 
 	constructor(leaf: WorkspaceLeaf, plugin: BrainCanvasPlugin) {
 		super(leaf);
@@ -129,9 +145,11 @@ export class BrainView extends ItemView {
 	getViewType(): string {
 		return VIEW_TYPE_BRAIN;
 	}
+
 	getDisplayText(): string {
 		return "Brain Canvas";
 	}
+
 	getIcon(): string {
 		return "git-fork";
 	}
@@ -198,10 +216,14 @@ export class BrainView extends ItemView {
 		);
 
 		// re-render when metadata changes
-		this.registerEvent(this.app.metadataCache.on("changed", () => this.render()));
+		this.registerEvent(
+			this.app.metadataCache.on("changed", () => this.render())
+		);
 
 		// live drag wiring
-		this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
+		this.container.addEventListener("mousemove", (e) =>
+			this.onMouseMove(e)
+		);
 		this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
 
 		// accept files dropped from explorer
@@ -227,15 +249,16 @@ export class BrainView extends ItemView {
 		if (!fm || fm.parents == null) return [];
 		let parents = fm.parents;
 		if (!Array.isArray(parents)) parents = [parents];
-
 		const out: TFile[] = [];
 		for (const p of parents) {
 			const lp = extractLinkpath(p);
 			if (!lp) continue;
-			const dest = this.app.metadataCache.getFirstLinkpathDest(lp, file.path);
+			const dest = this.app.metadataCache.getFirstLinkpathDest(
+				lp,
+				file.path
+			);
 			if (dest) out.push(dest);
 		}
-
 		out.sort((a, b) =>
 			a.basename.localeCompare(b.basename, undefined, {
 				sensitivity: "base",
@@ -249,7 +272,8 @@ export class BrainView extends ItemView {
 		const out: TFile[] = [];
 		for (const md of this.app.vault.getMarkdownFiles()) {
 			if (md.path === file.path) continue;
-			if (this.getParents(md).some((p) => p.path === file.path)) out.push(md);
+			if (this.getParents(md).some((p) => p.path === file.path))
+				out.push(md);
 		}
 		out.sort((a, b) =>
 			a.basename.localeCompare(b.basename, undefined, {
@@ -267,7 +291,10 @@ export class BrainView extends ItemView {
 
 		const basenameCounts = new Map<string, number>();
 		for (const f of files) {
-			basenameCounts.set(f.basename, (basenameCounts.get(f.basename) ?? 0) + 1);
+			basenameCounts.set(
+				f.basename,
+				(basenameCounts.get(f.basename) ?? 0) + 1
+			);
 		}
 
 		const suggestions = files.map((f) =>
@@ -277,12 +304,19 @@ export class BrainView extends ItemView {
 		);
 
 		suggestions.sort((a, b) =>
-			a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })
+			a.localeCompare(b, undefined, {
+				sensitivity: "base",
+				numeric: true,
+			})
 		);
+
 		return suggestions;
 	}
 
-	private resolveExistingNote(input: string, contextPath: string): TFile | null {
+	private resolveExistingNote(
+		input: string,
+		contextPath: string
+	): TFile | null {
 		const raw = (extractLinkpath(input) ?? input).trim();
 		if (!raw) return null;
 
@@ -290,7 +324,10 @@ export class BrainView extends ItemView {
 		const byPath = this.app.vault.getAbstractFileByPath(asPath);
 		if (byPath instanceof TFile && byPath.extension === "md") return byPath;
 
-		const byLink = this.app.metadataCache.getFirstLinkpathDest(raw, contextPath);
+		const byLink = this.app.metadataCache.getFirstLinkpathDest(
+			raw,
+			contextPath
+		);
 		if (byLink && byLink.extension === "md") return byLink;
 
 		const rawNoExt = raw.replace(/\.md$/i, "");
@@ -299,7 +336,8 @@ export class BrainView extends ItemView {
 				rawNoExt,
 				contextPath
 			);
-			if (byLinkNoExt && byLinkNoExt.extension === "md") return byLinkNoExt;
+			if (byLinkNoExt && byLinkNoExt.extension === "md")
+				return byLinkNoExt;
 		}
 
 		return null;
@@ -314,8 +352,8 @@ export class BrainView extends ItemView {
 
 		const raw = (extractLinkpath(input) ?? input).trim();
 		if (!raw) return null;
-		const path = raw.endsWith(".md") ? raw : `${raw}.md`;
 
+		const path = raw.endsWith(".md") ? raw : `${raw}.md`;
 		const found = this.app.vault.getAbstractFileByPath(path);
 		if (found instanceof TFile && found.extension === "md") return found;
 
@@ -344,13 +382,11 @@ export class BrainView extends ItemView {
 			let parents = fm.parents;
 			if (parents == null) parents = [];
 			if (!Array.isArray(parents)) parents = [parents];
-
 			const link = `[[${parent.basename}]]`;
 			const already = parents.some(
 				(p: any) => extractLinkpath(p) === parent.basename
 			);
 			if (!already) parents.push(link);
-
 			fm.parents = parents;
 		});
 	}
@@ -392,6 +428,14 @@ export class BrainView extends ItemView {
 
 	private renderHistory() {
 		if (!this.historyLayer) return;
+
+		// On mobile, lift the strip above Obsidian's bottom menu.
+		if (Platform.isMobile) {
+			this.historyLayer.style.bottom = `${this.plugin.settings.mobileHistoryOffset}px`;
+		} else {
+			this.historyLayer.style.bottom = "";
+		}
+
 		this.historyLayer.empty();
 
 		const files = this.getRecentFiles();
@@ -399,9 +443,11 @@ export class BrainView extends ItemView {
 			this.historyLayer.style.display = "none";
 			return;
 		}
-
 		this.historyLayer.style.display = "block";
-		const row = this.historyLayer.createDiv({ cls: "brain-history-row" });
+
+		const row = this.historyLayer.createDiv({
+			cls: "brain-history-row",
+		});
 
 		// oldest -> newest (newest appears on right)
 		for (const file of files) {
@@ -418,7 +464,6 @@ export class BrainView extends ItemView {
 
 	render() {
 		if (!this.svg || !this.nodeLayer) return;
-
 		this.nodeLayer.empty();
 		while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild);
 		this.pointEls.clear();
@@ -459,7 +504,9 @@ export class BrainView extends ItemView {
 		this.layoutChildrenTwoColumns(children, W, childrenY);
 
 		// draw links after DOM has measurable geometry
-		window.requestAnimationFrame(() => this.drawLinks(parents, children));
+		window.requestAnimationFrame(() =>
+			this.drawLinks(parents, children)
+		);
 	}
 
 	private layoutRow(files: TFile[], W: number, y: number) {
@@ -471,10 +518,13 @@ export class BrainView extends ItemView {
 		});
 	}
 
-	private layoutChildrenTwoColumns(files: TFile[], W: number, startY: number) {
+	private layoutChildrenTwoColumns(
+		files: TFile[],
+		W: number,
+		startY: number
+	) {
 		const n = files.length;
 		if (n === 0) return;
-
 		const cx = W / 2;
 		const colOffset = Math.min(W / 4, 180);
 		const leftX = cx - colOffset;
@@ -512,19 +562,20 @@ export class BrainView extends ItemView {
 		top.dataset.direction = "top";
 		this.pointEls.set(`${file.path}|top`, top);
 
-const isMobile = Platform.isMobile;
-const truncateAt = 18;
-const needsTruncation = !central && isMobile && file.basename.length > truncateAt;
-const displayName = needsTruncation
-  ? file.basename.substring(0, truncateAt) + "…"
-  : file.basename;
+		const isMobile = Platform.isMobile;
+		const truncateAt = 18;
+		const needsTruncation =
+			!central && isMobile && file.basename.length > truncateAt;
+		const displayName = needsTruncation
+			? file.basename.substring(0, truncateAt) + "…"
+			: file.basename;
 
-const label = node.createDiv({
-  cls: "brain-label",
-  text: displayName,
-  attr: { "data-fullname": file.basename },
-});
-label.addEventListener("click", () => this.openNote(file));
+		const label = node.createDiv({
+			cls: "brain-label",
+			text: displayName,
+			attr: { "data-fullname": file.basename },
+		});
+		label.addEventListener("click", () => this.openNote(file));
 
 		const bottom = node.createDiv({
 			cls:
@@ -535,7 +586,9 @@ label.addEventListener("click", () => this.openNote(file));
 		bottom.dataset.direction = "bottom";
 		this.pointEls.set(`${file.path}|bottom`, bottom);
 
-		top.addEventListener("mousedown", (e) => this.startDrag(e, file, "top"));
+		top.addEventListener("mousedown", (e) =>
+			this.startDrag(e, file, "top")
+		);
 		bottom.addEventListener("mousedown", (e) =>
 			this.startDrag(e, file, "bottom")
 		);
@@ -609,7 +662,6 @@ label.addEventListener("click", () => this.openNote(file));
 		const cy1 = y1 + dy;
 		const cx2 = x2;
 		const cy2 = y2 - dy;
-
 		const path = document.createElementNS(ns, "path");
 		path.setAttribute(
 			"d",
@@ -665,6 +717,7 @@ label.addEventListener("click", () => this.openNote(file));
 		}
 
 		if (!this.currentFile) return;
+
 		const source = this.app.vault.getAbstractFileByPath(d.sourcePath);
 		if (!(source instanceof TFile)) return;
 
@@ -693,16 +746,16 @@ label.addEventListener("click", () => this.openNote(file));
 		const suggestions = this.getExistingNoteSuggestions(source.path);
 		new NewNoteModal(this.app, suggestions, async (name) => {
 			const asChild = d.direction === "bottom";
-
 			if (d.sourcePath === this.currentFile?.path) {
 				await this.createLinkedNote(name, asChild);
 			} else {
-				const nf = await this.getOrCreateNoteFromInput(name, source.path);
+				const nf = await this.getOrCreateNoteFromInput(
+					name,
+					source.path
+				);
 				if (!nf) return;
-
 				if (asChild) await this.addParent(nf, source);
 				else await this.addParent(source, nf);
-
 				this.render();
 			}
 		}).open();
@@ -717,7 +770,6 @@ label.addEventListener("click", () => this.openNote(file));
 		// Obsidian internal drag manager
 		const dm = (this.app as any).dragManager;
 		let file: TFile | null = null;
-
 		if (dm?.draggable?.file instanceof TFile) file = dm.draggable.file;
 
 		if (!file) {
@@ -729,7 +781,11 @@ label.addEventListener("click", () => this.openNote(file));
 			}
 		}
 
-		if (file && file.extension === "md" && file.path !== this.currentFile.path) {
+		if (
+			file &&
+			file.extension === "md" &&
+			file.path !== this.currentFile.path
+		) {
 			await this.addParent(file, this.currentFile);
 			this.render();
 		}
@@ -744,9 +800,14 @@ export default class BrainCanvasPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.registerView(VIEW_TYPE_BRAIN, (leaf) => new BrainView(leaf, this));
+		this.registerView(
+			VIEW_TYPE_BRAIN,
+			(leaf) => new BrainView(leaf, this)
+		);
 
-		this.addRibbonIcon("git-fork", "Open Brain Canvas", () => this.activateView());
+		this.addRibbonIcon("git-fork", "Open Brain Canvas", () =>
+			this.activateView()
+		);
 
 		this.addCommand({
 			id: "open-brain-canvas",
@@ -762,7 +823,11 @@ export default class BrainCanvasPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
 	}
 
 	async saveSettings() {
@@ -771,21 +836,21 @@ export default class BrainCanvasPlugin extends Plugin {
 
 	/** Re-render every open Brain Canvas view (used after a setting changes). */
 	refreshViews() {
-		this.app.workspace.getLeavesOfType(VIEW_TYPE_BRAIN).forEach((leaf) => {
-			const view = leaf.view;
-			if (view instanceof BrainView) view.render();
-		});
+		this.app.workspace
+			.getLeavesOfType(VIEW_TYPE_BRAIN)
+			.forEach((leaf) => {
+				const view = leaf.view;
+				if (view instanceof BrainView) view.render();
+			});
 	}
 
 	async activateView() {
 		const { workspace } = this.app;
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BRAIN)[0];
-
 		if (!leaf) {
 			leaf = workspace.getLeaf(true);
 			await leaf.setViewState({ type: VIEW_TYPE_BRAIN, active: true });
 		}
-
 		workspace.revealLeaf(leaf);
 	}
 }
@@ -814,6 +879,23 @@ class BrainCanvasSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.useCurvedLinks)
 					.onChange(async (value) => {
 						this.plugin.settings.useCurvedLinks = value;
+						await this.plugin.saveSettings();
+						this.plugin.refreshViews();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Mobile history offset")
+			.setDesc(
+				"On mobile, raise the recent-thoughts strip by this many pixels so it stays clear of Obsidian's bottom menu. Desktop is unaffected."
+			)
+			.addSlider((slider) =>
+				slider
+					.setLimits(0, 200, 5)
+					.setValue(this.plugin.settings.mobileHistoryOffset)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.mobileHistoryOffset = value;
 						await this.plugin.saveSettings();
 						this.plugin.refreshViews();
 					})

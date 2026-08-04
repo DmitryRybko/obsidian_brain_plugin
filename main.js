@@ -29,7 +29,8 @@ module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var VIEW_TYPE_BRAIN = "brain-canvas-view";
 var DEFAULT_SETTINGS = {
-  useCurvedLinks: true
+  useCurvedLinks: true,
+  mobileHistoryOffset: 60
 };
 function extractLinkpath(value) {
   if (typeof value !== "string") return null;
@@ -56,7 +57,8 @@ var NewNoteModal = class extends import_obsidian.Modal {
     if (this.suggestions.length > 0) {
       const datalist = contentEl.createEl("datalist");
       datalist.id = listId;
-      for (const s of this.suggestions) datalist.createEl("option", { value: s });
+      for (const s of this.suggestions)
+        datalist.createEl("option", { value: s });
     }
     new import_obsidian.Setting(contentEl).addText((text) => {
       this.inputEl = text.inputEl;
@@ -163,8 +165,13 @@ var BrainView = class extends import_obsidian.ItemView {
         }
       })
     );
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.render()));
-    this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
+    this.registerEvent(
+      this.app.metadataCache.on("changed", () => this.render())
+    );
+    this.container.addEventListener(
+      "mousemove",
+      (e) => this.onMouseMove(e)
+    );
     this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
     this.container.addEventListener("dragover", (e) => e.preventDefault());
     this.container.addEventListener("drop", (e) => this.onDrop(e));
@@ -189,7 +196,10 @@ var BrainView = class extends import_obsidian.ItemView {
     for (const p of parents) {
       const lp = extractLinkpath(p);
       if (!lp) continue;
-      const dest = this.app.metadataCache.getFirstLinkpathDest(lp, file.path);
+      const dest = this.app.metadataCache.getFirstLinkpathDest(
+        lp,
+        file.path
+      );
       if (dest) out.push(dest);
     }
     out.sort(
@@ -204,7 +214,8 @@ var BrainView = class extends import_obsidian.ItemView {
     const out = [];
     for (const md of this.app.vault.getMarkdownFiles()) {
       if (md.path === file.path) continue;
-      if (this.getParents(md).some((p) => p.path === file.path)) out.push(md);
+      if (this.getParents(md).some((p) => p.path === file.path))
+        out.push(md);
     }
     out.sort(
       (a, b) => a.basename.localeCompare(b.basename, void 0, {
@@ -219,7 +230,10 @@ var BrainView = class extends import_obsidian.ItemView {
     const files = this.app.vault.getMarkdownFiles().filter((f) => f.path !== excludePath);
     const basenameCounts = /* @__PURE__ */ new Map();
     for (const f of files) {
-      basenameCounts.set(f.basename, ((_a = basenameCounts.get(f.basename)) != null ? _a : 0) + 1);
+      basenameCounts.set(
+        f.basename,
+        ((_a = basenameCounts.get(f.basename)) != null ? _a : 0) + 1
+      );
     }
     const suggestions = files.map(
       (f) => {
@@ -228,7 +242,10 @@ var BrainView = class extends import_obsidian.ItemView {
       }
     );
     suggestions.sort(
-      (a, b) => a.localeCompare(b, void 0, { sensitivity: "base", numeric: true })
+      (a, b) => a.localeCompare(b, void 0, {
+        sensitivity: "base",
+        numeric: true
+      })
     );
     return suggestions;
   }
@@ -239,7 +256,10 @@ var BrainView = class extends import_obsidian.ItemView {
     const asPath = raw.endsWith(".md") ? raw : `${raw}.md`;
     const byPath = this.app.vault.getAbstractFileByPath(asPath);
     if (byPath instanceof import_obsidian.TFile && byPath.extension === "md") return byPath;
-    const byLink = this.app.metadataCache.getFirstLinkpathDest(raw, contextPath);
+    const byLink = this.app.metadataCache.getFirstLinkpathDest(
+      raw,
+      contextPath
+    );
     if (byLink && byLink.extension === "md") return byLink;
     const rawNoExt = raw.replace(/\.md$/i, "");
     if (rawNoExt !== raw) {
@@ -247,7 +267,8 @@ var BrainView = class extends import_obsidian.ItemView {
         rawNoExt,
         contextPath
       );
-      if (byLinkNoExt && byLinkNoExt.extension === "md") return byLinkNoExt;
+      if (byLinkNoExt && byLinkNoExt.extension === "md")
+        return byLinkNoExt;
     }
     return null;
   }
@@ -318,6 +339,11 @@ var BrainView = class extends import_obsidian.ItemView {
   }
   renderHistory() {
     if (!this.historyLayer) return;
+    if (import_obsidian.Platform.isMobile) {
+      this.historyLayer.style.bottom = `${this.plugin.settings.mobileHistoryOffset}px`;
+    } else {
+      this.historyLayer.style.bottom = "";
+    }
     this.historyLayer.empty();
     const files = this.getRecentFiles();
     if (files.length === 0) {
@@ -325,7 +351,9 @@ var BrainView = class extends import_obsidian.ItemView {
       return;
     }
     this.historyLayer.style.display = "block";
-    const row = this.historyLayer.createDiv({ cls: "brain-history-row" });
+    const row = this.historyLayer.createDiv({
+      cls: "brain-history-row"
+    });
     for (const file of files) {
       const item = row.createDiv({
         cls: "brain-history-item",
@@ -362,7 +390,9 @@ var BrainView = class extends import_obsidian.ItemView {
     this.makeNode(this.currentFile, cx, centerY, true);
     this.layoutRow(parents, W, parentsY);
     this.layoutChildrenTwoColumns(children, W, childrenY);
-    window.requestAnimationFrame(() => this.drawLinks(parents, children));
+    window.requestAnimationFrame(
+      () => this.drawLinks(parents, children)
+    );
   }
   layoutRow(files, W, y) {
     const n = files.length;
@@ -419,7 +449,10 @@ var BrainView = class extends import_obsidian.ItemView {
     bottom.dataset.path = file.path;
     bottom.dataset.direction = "bottom";
     this.pointEls.set(`${file.path}|bottom`, bottom);
-    top.addEventListener("mousedown", (e) => this.startDrag(e, file, "top"));
+    top.addEventListener(
+      "mousedown",
+      (e) => this.startDrag(e, file, "top")
+    );
     bottom.addEventListener(
       "mousedown",
       (e) => this.startDrag(e, file, "bottom")
@@ -549,7 +582,10 @@ var BrainView = class extends import_obsidian.ItemView {
       if (d.sourcePath === ((_a2 = this.currentFile) == null ? void 0 : _a2.path)) {
         await this.createLinkedNote(name, asChild);
       } else {
-        const nf = await this.getOrCreateNoteFromInput(name, source.path);
+        const nf = await this.getOrCreateNoteFromInput(
+          name,
+          source.path
+        );
         if (!nf) return;
         if (asChild) await this.addParent(nf, source);
         else await this.addParent(source, nf);
@@ -586,8 +622,15 @@ var BrainCanvasPlugin = class extends import_obsidian.Plugin {
   }
   async onload() {
     await this.loadSettings();
-    this.registerView(VIEW_TYPE_BRAIN, (leaf) => new BrainView(leaf, this));
-    this.addRibbonIcon("git-fork", "Open Brain Canvas", () => this.activateView());
+    this.registerView(
+      VIEW_TYPE_BRAIN,
+      (leaf) => new BrainView(leaf, this)
+    );
+    this.addRibbonIcon(
+      "git-fork",
+      "Open Brain Canvas",
+      () => this.activateView()
+    );
     this.addCommand({
       id: "open-brain-canvas",
       name: "Open Brain Canvas",
@@ -599,7 +642,11 @@ var BrainCanvasPlugin = class extends import_obsidian.Plugin {
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_BRAIN);
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign(
+      {},
+      DEFAULT_SETTINGS,
+      await this.loadData()
+    );
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -635,6 +682,15 @@ var BrainCanvasSettingTab = class extends import_obsidian.PluginSettingTab {
     ).addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.useCurvedLinks).onChange(async (value) => {
         this.plugin.settings.useCurvedLinks = value;
+        await this.plugin.saveSettings();
+        this.plugin.refreshViews();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Mobile history offset").setDesc(
+      "On mobile, raise the recent-thoughts strip by this many pixels so it stays clear of Obsidian's bottom menu. Desktop is unaffected."
+    ).addSlider(
+      (slider) => slider.setLimits(0, 200, 5).setValue(this.plugin.settings.mobileHistoryOffset).setDynamicTooltip().onChange(async (value) => {
+        this.plugin.settings.mobileHistoryOffset = value;
         await this.plugin.saveSettings();
         this.plugin.refreshViews();
       })
