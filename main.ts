@@ -4,6 +4,7 @@ import {
 	MarkdownView,
 	Menu,
 	Modal,
+	Notice,
 	Platform,
 	Plugin,
 	PluginSettingTab,
@@ -31,7 +32,9 @@ const DEFAULT_SETTINGS: BrainCanvasSettings = {
 function extractLinkpath(value: any): string | null {
 	if (typeof value !== "string") return null;
 	let v = value.trim();
-	const m = v.match(/^\[\[(.*?)\]\]$/);
+	const m = v.match(/^
+\[
+\[(.*?)\]\]$/);
 	if (m) v = m[1];
 	v = v.split("|")[0].split("#")[0].trim();
 	return v || null;
@@ -176,6 +179,14 @@ export class BrainView extends ItemView {
 		// Bottom recent-history strip
 		this.historyLayer = this.container.createDiv({ cls: "brain-history" });
 
+		// Header actions (the three-dots pane menu isn't surfaced on mobile)
+		this.addAction("arrow-down", "Create child note", () =>
+			this.promptCreateLinkedNote(true)
+		);
+		this.addAction("arrow-up", "Create parent note", () =>
+			this.promptCreateLinkedNote(false)
+		);
+
 		// Re-render whenever the canvas changes size.
 		this.resizeObserver = new ResizeObserver(() => {
 			if (this.container.clientWidth > 0) this.render();
@@ -268,7 +279,10 @@ export class BrainView extends ItemView {
 	}
 
 	private promptCreateLinkedNote(asChild: boolean) {
-		if (!this.currentFile) return;
+		if (!this.currentFile) {
+			new Notice("Open a note in the Brain Canvas first.");
+			return;
+		}
 		const suggestions = this.getExistingNoteSuggestions(
 			this.currentFile.path
 		);
@@ -835,7 +849,7 @@ export class BrainView extends ItemView {
 /* ------------------------- plugin entry ------------------------- */
 
 export default class BrainCanvasPlugin extends Plugin {
-	declare settings: BrainCanvasSettings;
+	settings!: BrainCanvasSettings;
 
 	async onload() {
 		await this.loadSettings();
