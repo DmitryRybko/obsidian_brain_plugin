@@ -138,6 +138,16 @@ var BrainView = class extends import_obsidian.ItemView {
     this.container.appendChild(this.svg);
     this.nodeLayer = this.container.createDiv({ cls: "brain-node-layer" });
     this.historyLayer = this.container.createDiv({ cls: "brain-history" });
+    this.addAction(
+      "arrow-down",
+      "Create child note",
+      () => this.promptCreateLinkedNote(true)
+    );
+    this.addAction(
+      "arrow-up",
+      "Create parent note",
+      () => this.promptCreateLinkedNote(false)
+    );
     this.resizeObserver = new ResizeObserver(() => {
       if (this.container.clientWidth > 0) this.render();
     });
@@ -196,7 +206,10 @@ var BrainView = class extends import_obsidian.ItemView {
     menu.addSeparator();
   }
   promptCreateLinkedNote(asChild) {
-    if (!this.currentFile) return;
+    if (!this.currentFile) {
+      new import_obsidian.Notice("Open a note in the Brain Canvas first.");
+      return;
+    }
     const suggestions = this.getExistingNoteSuggestions(
       this.currentFile.path
     );
