@@ -41,18 +41,20 @@ function extractLinkpath(value) {
   return v || null;
 }
 var NewNoteModal = class extends import_obsidian.Modal {
-  constructor(app, suggestions, onSubmit) {
+  constructor(app, suggestions, onSubmit, title = "New note name") {
     super(app);
     __publicField(this, "onSubmit");
     __publicField(this, "suggestions");
+    __publicField(this, "title");
     __publicField(this, "value", "");
     __publicField(this, "inputEl", null);
     this.suggestions = suggestions;
     this.onSubmit = onSubmit;
+    this.title = title;
   }
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h3", { text: "New note name" });
+    contentEl.createEl("h3", { text: this.title });
     const listId = `brain-note-suggestions-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     if (this.suggestions.length > 0) {
       const datalist = contentEl.createEl("datalist");
@@ -168,10 +170,7 @@ var BrainView = class extends import_obsidian.ItemView {
     this.registerEvent(
       this.app.metadataCache.on("changed", () => this.render())
     );
-    this.container.addEventListener(
-      "mousemove",
-      (e) => this.onMouseMove(e)
-    );
+    this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
     this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
     this.container.addEventListener("dragover", (e) => e.preventDefault());
     this.container.addEventListener("drop", (e) => this.onDrop(e));
@@ -184,6 +183,31 @@ var BrainView = class extends import_obsidian.ItemView {
     (_a = this.resizeObserver) == null ? void 0 : _a.disconnect();
     this.resizeObserver = null;
     this.contentEl.empty();
+  }
+  /* --------------------- pane (three-dots) menu --------------------- */
+  onPaneMenu(menu, source) {
+    super.onPaneMenu(menu, source);
+    menu.addItem(
+      (item) => item.setTitle("Create child note").setIcon("arrow-down").setDisabled(!this.currentFile).onClick(() => this.promptCreateLinkedNote(true))
+    );
+    menu.addItem(
+      (item) => item.setTitle("Create parent note").setIcon("arrow-up").setDisabled(!this.currentFile).onClick(() => this.promptCreateLinkedNote(false))
+    );
+    menu.addSeparator();
+  }
+  promptCreateLinkedNote(asChild) {
+    if (!this.currentFile) return;
+    const suggestions = this.getExistingNoteSuggestions(
+      this.currentFile.path
+    );
+    new NewNoteModal(
+      this.app,
+      suggestions,
+      (name) => {
+        void this.createLinkedNote(name, asChild);
+      },
+      asChild ? "New child note" : "New parent note"
+    ).open();
   }
   /* --------------------- relationship lookups --------------------- */
   getParents(file) {
@@ -390,9 +414,7 @@ var BrainView = class extends import_obsidian.ItemView {
     this.makeNode(this.currentFile, cx, centerY, true);
     this.layoutRow(parents, W, parentsY);
     this.layoutChildrenTwoColumns(children, W, childrenY);
-    window.requestAnimationFrame(
-      () => this.drawLinks(parents, children)
-    );
+    window.requestAnimationFrame(() => this.drawLinks(parents, children));
   }
   layoutRow(files, W, y) {
     const n = files.length;
@@ -616,10 +638,6 @@ var BrainView = class extends import_obsidian.ItemView {
   }
 };
 var BrainCanvasPlugin = class extends import_obsidian.Plugin {
-  constructor() {
-    super(...arguments);
-    __publicField(this, "settings");
-  }
   async onload() {
     await this.loadSettings();
     this.registerView(
