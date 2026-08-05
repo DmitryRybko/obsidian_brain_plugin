@@ -32,9 +32,7 @@ const DEFAULT_SETTINGS: BrainCanvasSettings = {
 function extractLinkpath(value: any): string | null {
 	if (typeof value !== "string") return null;
 	let v = value.trim();
-	const m = v.match(/^
-\[
-\[(.*?)\]\]$/);
+	const m = v.match(/^\[\[(.*?)\]\]$/);
 	if (m) v = m[1];
 	v = v.split("|")[0].split("#")[0].trim();
 	return v || null;
@@ -849,7 +847,7 @@ export class BrainView extends ItemView {
 /* ------------------------- plugin entry ------------------------- */
 
 export default class BrainCanvasPlugin extends Plugin {
-	settings!: BrainCanvasSettings;
+	declare settings: BrainCanvasSettings;
 
 	async onload() {
 		await this.loadSettings();
