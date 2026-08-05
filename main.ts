@@ -2,6 +2,7 @@ import {
 	App,
 	ItemView,
 	MarkdownView,
+	Menu,
 	Modal,
 	Platform,
 	Plugin,
@@ -41,27 +42,29 @@ function extractLinkpath(value: any): string | null {
 class NewNoteModal extends Modal {
 	private onSubmit: (name: string) => void;
 	private readonly suggestions: string[];
+	private readonly title: string;
 	private value = "";
 	private inputEl: HTMLInputElement | null = null;
 
 	constructor(
 		app: App,
 		suggestions: string[],
-		onSubmit: (name: string) => void
+		onSubmit: (name: string) => void,
+		title: string = "New note name"
 	) {
 		super(app);
 		this.suggestions = suggestions;
 		this.onSubmit = onSubmit;
+		this.title = title;
 	}
 
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.createEl("h3", { text: "New note name" });
+		contentEl.createEl("h3", { text: this.title });
 
 		const listId = `brain-note-suggestions-${Date.now()}-${Math.random()
 			.toString(36)
 			.slice(2)}`;
-
 		if (this.suggestions.length > 0) {
 			const datalist = contentEl.createEl("datalist");
 			datalist.id = listId;
@@ -221,9 +224,7 @@ export class BrainView extends ItemView {
 		);
 
 		// live drag wiring
-		this.container.addEventListener("mousemove", (e) =>
-			this.onMouseMove(e)
-		);
+		this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
 		this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
 
 		// accept files dropped from explorer
@@ -240,6 +241,45 @@ export class BrainView extends ItemView {
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
 		this.contentEl.empty();
+	}
+
+	/* --------------------- pane (three-dots) menu --------------------- */
+
+	onPaneMenu(menu: Menu, source: string): void {
+		super.onPaneMenu(menu, source);
+
+		menu.addItem((item) =>
+			item
+				.setTitle("Create child note")
+				.setIcon("arrow-down")
+				.setDisabled(!this.currentFile)
+				.onClick(() => this.promptCreateLinkedNote(true))
+		);
+
+		menu.addItem((item) =>
+			item
+				.setTitle("Create parent note")
+				.setIcon("arrow-up")
+				.setDisabled(!this.currentFile)
+				.onClick(() => this.promptCreateLinkedNote(false))
+		);
+
+		menu.addSeparator();
+	}
+
+	private promptCreateLinkedNote(asChild: boolean) {
+		if (!this.currentFile) return;
+		const suggestions = this.getExistingNoteSuggestions(
+			this.currentFile.path
+		);
+		new NewNoteModal(
+			this.app,
+			suggestions,
+			(name) => {
+				void this.createLinkedNote(name, asChild);
+			},
+			asChild ? "New child note" : "New parent note"
+		).open();
 	}
 
 	/* --------------------- relationship lookups --------------------- */
@@ -382,6 +422,7 @@ export class BrainView extends ItemView {
 			let parents = fm.parents;
 			if (parents == null) parents = [];
 			if (!Array.isArray(parents)) parents = [parents];
+
 			const link = `[[${parent.basename}]]`;
 			const already = parents.some(
 				(p: any) => extractLinkpath(p) === parent.basename
@@ -504,9 +545,7 @@ export class BrainView extends ItemView {
 		this.layoutChildrenTwoColumns(children, W, childrenY);
 
 		// draw links after DOM has measurable geometry
-		window.requestAnimationFrame(() =>
-			this.drawLinks(parents, children)
-		);
+		window.requestAnimationFrame(() => this.drawLinks(parents, children));
 	}
 
 	private layoutRow(files: TFile[], W: number, y: number) {
@@ -525,6 +564,7 @@ export class BrainView extends ItemView {
 	) {
 		const n = files.length;
 		if (n === 0) return;
+
 		const cx = W / 2;
 		const colOffset = Math.min(W / 4, 180);
 		const leftX = cx - colOffset;
@@ -662,6 +702,7 @@ export class BrainView extends ItemView {
 		const cy1 = y1 + dy;
 		const cx2 = x2;
 		const cy2 = y2 - dy;
+
 		const path = document.createElementNS(ns, "path");
 		path.setAttribute(
 			"d",
@@ -709,7 +750,6 @@ export class BrainView extends ItemView {
 	private onMouseUp(e: MouseEvent) {
 		const d = this.drag;
 		if (!d.active) return;
-
 		this.drag.active = false;
 		if (d.line) {
 			this.svg.removeChild(d.line);
@@ -846,11 +886,13 @@ export default class BrainCanvasPlugin extends Plugin {
 
 	async activateView() {
 		const { workspace } = this.app;
+
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BRAIN)[0];
 		if (!leaf) {
 			leaf = workspace.getLeaf(true);
 			await leaf.setViewState({ type: VIEW_TYPE_BRAIN, active: true });
 		}
+
 		workspace.revealLeaf(leaf);
 	}
 }
