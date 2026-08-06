@@ -2,7 +2,9 @@ import {
 	App,
 	ItemView,
 	MarkdownView,
+	Menu,
 	Modal,
+	Notice,
 	Platform,
 	Plugin,
 	PluginSettingTab,
@@ -41,41 +43,43 @@ function extractLinkpath(value: any): string | null {
 class NewNoteModal extends Modal {
 	private onSubmit: (name: string) => void;
 	private readonly suggestions: string[];
-	private readonly suggestionLimit = 5;
+	private readonly title: string;
 	private value = "";
 	private inputEl: HTMLInputElement | null = null;
-	private listEl: HTMLElement | null = null;
 
 	constructor(
 		app: App,
 		suggestions: string[],
-		onSubmit: (name: string) => void
+		onSubmit: (name: string) => void,
+		title: string = "New note name"
 	) {
 		super(app);
 		this.suggestions = suggestions;
 		this.onSubmit = onSubmit;
+		this.title = title;
 	}
 
 	onOpen() {
 		const { contentEl } = this;
+		contentEl.createEl("h3", { text: this.title });
 
-		// Lets CSS pin this modal to the top of the screen on mobile.
-		this.containerEl.addClass("brain-new-note-modal-container");
-
-		contentEl.createEl("h3", { text: "New note name" });
-
-		// Custom suggestion list, rendered ABOVE the input.
-		// (Replaces the native <datalist>, whose dropdown covers the
-		// entire screen, including the keyboard, on Android.)
-		this.listEl = contentEl.createDiv({ cls: "brain-suggestion-list" });
+		const listId = `brain-note-suggestions-${Date.now()}-${Math.random()
+			.toString(36)
+			.slice(2)}`;
+		if (this.suggestions.length > 0) {
+			const datalist = contentEl.createEl("datalist");
+			datalist.id = listId;
+			for (const s of this.suggestions)
+				datalist.createEl("option", { value: s });
+		}
 
 		new Setting(contentEl).addText((text) => {
 			this.inputEl = text.inputEl;
-			text.setPlaceholder("Pick above or type a new name");
-			text.onChange((v) => {
-				this.value = v;
-				this.renderSuggestions();
-			});
+			text.setPlaceholder("Type a new or existing note name");
+			if (this.suggestions.length > 0) {
+				text.inputEl.setAttribute("list", listId);
+			}
+			text.onChange((v) => (this.value = v));
 			text.inputEl.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
@@ -92,42 +96,6 @@ class NewNoteModal extends Modal {
 				.setCta()
 				.onClick(() => this.commit())
 		);
-
-		this.renderSuggestions();
-	}
-
-	private renderSuggestions() {
-		if (!this.listEl) return;
-		this.listEl.empty();
-
-		const query = this.value.trim().toLowerCase();
-		const matches = this.suggestions
-			.filter((s) => !query || s.toLowerCase().includes(query))
-			.slice(0, this.suggestionLimit);
-
-		if (matches.length === 0) {
-			this.listEl.style.display = "none";
-			return;
-		}
-		this.listEl.style.display = "";
-
-		for (const s of matches) {
-			const item = this.listEl.createDiv({
-				cls: "brain-suggestion-item",
-				text: s,
-			});
-			// pointerdown + preventDefault: the input keeps focus and the
-			// on-screen keyboard stays open while picking a suggestion.
-			item.addEventListener("pointerdown", (e) => {
-				e.preventDefault();
-				this.value = s;
-				if (this.inputEl) {
-					this.inputEl.value = s;
-					this.inputEl.focus();
-				}
-				this.renderSuggestions();
-			});
-		}
 	}
 
 	private commit() {
@@ -141,7 +109,6 @@ class NewNoteModal extends Modal {
 	onClose() {
 		this.contentEl.empty();
 		this.inputEl = null;
-		this.listEl = null;
 	}
 }
 
@@ -210,6 +177,14 @@ export class BrainView extends ItemView {
 		// Bottom recent-history strip
 		this.historyLayer = this.container.createDiv({ cls: "brain-history" });
 
+		// Header actions (the three-dots pane menu isn't surfaced on mobile)
+		this.addAction("arrow-down", "Create child note", () =>
+			this.promptCreateLinkedNote(true)
+		);
+		this.addAction("arrow-up", "Create parent note", () =>
+			this.promptCreateLinkedNote(false)
+		);
+
 		// Re-render whenever the canvas changes size.
 		this.resizeObserver = new ResizeObserver(() => {
 			if (this.container.clientWidth > 0) this.render();
@@ -258,9 +233,7 @@ export class BrainView extends ItemView {
 		);
 
 		// live drag wiring
-		this.container.addEventListener("mousemove", (e) =>
-			this.onMouseMove(e)
-		);
+		this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
 		this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
 
 		// accept files dropped from explorer
@@ -277,6 +250,48 @@ export class BrainView extends ItemView {
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
 		this.contentEl.empty();
+	}
+
+	/* --------------------- pane (three-dots) menu --------------------- */
+
+	onPaneMenu(menu: Menu, source: string): void {
+		super.onPaneMenu(menu, source);
+
+		menu.addItem((item) =>
+			item
+				.setTitle("Create child note")
+				.setIcon("arrow-down")
+				.setDisabled(!this.currentFile)
+				.onClick(() => this.promptCreateLinkedNote(true))
+		);
+
+		menu.addItem((item) =>
+			item
+				.setTitle("Create parent note")
+				.setIcon("arrow-up")
+				.setDisabled(!this.currentFile)
+				.onClick(() => this.promptCreateLinkedNote(false))
+		);
+
+		menu.addSeparator();
+	}
+
+	private promptCreateLinkedNote(asChild: boolean) {
+		if (!this.currentFile) {
+			new Notice("Open a note in the Brain Canvas first.");
+			return;
+		}
+		const suggestions = this.getExistingNoteSuggestions(
+			this.currentFile.path
+		);
+		new NewNoteModal(
+			this.app,
+			suggestions,
+			(name) => {
+				void this.createLinkedNote(name, asChild);
+			},
+			asChild ? "New child note" : "New parent note"
+		).open();
 	}
 
 	/* --------------------- relationship lookups --------------------- */
@@ -419,6 +434,7 @@ export class BrainView extends ItemView {
 			let parents = fm.parents;
 			if (parents == null) parents = [];
 			if (!Array.isArray(parents)) parents = [parents];
+
 			const link = `[[${parent.basename}]]`;
 			const already = parents.some(
 				(p: any) => extractLinkpath(p) === parent.basename
@@ -541,9 +557,7 @@ export class BrainView extends ItemView {
 		this.layoutChildrenTwoColumns(children, W, childrenY);
 
 		// draw links after DOM has measurable geometry
-		window.requestAnimationFrame(() =>
-			this.drawLinks(parents, children)
-		);
+		window.requestAnimationFrame(() => this.drawLinks(parents, children));
 	}
 
 	private layoutRow(files: TFile[], W: number, y: number) {
@@ -562,6 +576,7 @@ export class BrainView extends ItemView {
 	) {
 		const n = files.length;
 		if (n === 0) return;
+
 		const cx = W / 2;
 		const colOffset = Math.min(W / 4, 180);
 		const leftX = cx - colOffset;
@@ -699,6 +714,7 @@ export class BrainView extends ItemView {
 		const cy1 = y1 + dy;
 		const cx2 = x2;
 		const cy2 = y2 - dy;
+
 		const path = document.createElementNS(ns, "path");
 		path.setAttribute(
 			"d",
@@ -746,7 +762,6 @@ export class BrainView extends ItemView {
 	private onMouseUp(e: MouseEvent) {
 		const d = this.drag;
 		if (!d.active) return;
-
 		this.drag.active = false;
 		if (d.line) {
 			this.svg.removeChild(d.line);
@@ -883,11 +898,13 @@ export default class BrainCanvasPlugin extends Plugin {
 
 	async activateView() {
 		const { workspace } = this.app;
+
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BRAIN)[0];
 		if (!leaf) {
 			leaf = workspace.getLeaf(true);
 			await leaf.setViewState({ type: VIEW_TYPE_BRAIN, active: true });
 		}
+
 		workspace.revealLeaf(leaf);
 	}
 }
