@@ -398,7 +398,6 @@ var BrainView = class extends import_obsidian.ItemView {
       attr: { "aria-label": "Add parent to central note" }
     });
     (0, import_obsidian.setIcon)(parentBtn, "corner-left-up");
-    parentBtn.createSpan({ text: "Parent" });
     parentBtn.addEventListener(
       "click",
       () => this.promptLinkedNote(false)
@@ -408,7 +407,6 @@ var BrainView = class extends import_obsidian.ItemView {
       attr: { "aria-label": "Add child to central note" }
     });
     (0, import_obsidian.setIcon)(childBtn, "corner-right-down");
-    childBtn.createSpan({ text: "Child" });
     childBtn.addEventListener(
       "click",
       () => this.promptLinkedNote(true)

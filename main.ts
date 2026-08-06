@@ -512,7 +512,6 @@ export class BrainView extends ItemView {
 			attr: { "aria-label": "Add parent to central note" },
 		});
 		setIcon(parentBtn, "corner-left-up");
-		parentBtn.createSpan({ text: "Parent" });
 		parentBtn.addEventListener("click", () =>
 			this.promptLinkedNote(false)
 		);
@@ -522,7 +521,6 @@ export class BrainView extends ItemView {
 			attr: { "aria-label": "Add child to central note" },
 		});
 		setIcon(childBtn, "corner-right-down");
-		childBtn.createSpan({ text: "Child" });
 		childBtn.addEventListener("click", () =>
 			this.promptLinkedNote(true)
 		);

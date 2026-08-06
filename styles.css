@@ -240,13 +240,14 @@ body.is-mobile .brain-new-note-modal-container {
 .brain-toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border-radius: 6px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
-  font-size: var(--font-ui-small);
   cursor: pointer;
   user-select: none;
   box-shadow: none;
@@ -258,17 +259,23 @@ body.is-mobile .brain-new-note-modal-container {
 }
 
 .brain-toolbar-btn .svg-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
-/* Bigger touch targets on Android / iOS */
+/* Mobile: pin the toolbar right at the top edge so it clears
+   the parents row, keep touch targets comfortably large. */
+body.is-mobile .brain-toolbar {
+  top: 2px;
+  right: 6px;
+}
+
 body.is-mobile .brain-toolbar-btn {
-  padding: 10px 16px;
-  font-size: var(--font-ui-medium);
+  width: 40px;
+  height: 40px;
 }
 
 body.is-mobile .brain-toolbar-btn .svg-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
