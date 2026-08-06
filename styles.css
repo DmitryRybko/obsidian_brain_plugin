@@ -225,3 +225,50 @@ body.is-mobile .brain-new-note-modal-container {
   align-items: flex-start;
   padding-top: 32px;
 }
+
+/* ---- top-right toolbar: parent / child creation ---- */
+
+.brain-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+}
+
+.brain-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: none;
+}
+
+.brain-toolbar-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.brain-toolbar-btn .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Bigger touch targets on Android / iOS */
+body.is-mobile .brain-toolbar-btn {
+  padding: 10px 16px;
+  font-size: var(--font-ui-medium);
+}
+
+body.is-mobile .brain-toolbar-btn .svg-icon {
+  width: 18px;
+  height: 18px;
+}

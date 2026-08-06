@@ -9,6 +9,7 @@ import {
 	Setting,
 	TFile,
 	WorkspaceLeaf,
+	setIcon,
 } from "obsidian";
 
 export const VIEW_TYPE_BRAIN = "brain-canvas-view";
@@ -156,6 +157,7 @@ export class BrainView extends ItemView {
 	private currentFile: TFile | null = null;
 	private pointEls: Map<string, HTMLElement> = new Map();
 	private resizeObserver: ResizeObserver | null = null;
+	private toolbarLayer!: HTMLElement;
 	private recentPaths: string[] = [];
 	private readonly historyLimit = 20;
 	private drag: {
@@ -209,6 +211,9 @@ export class BrainView extends ItemView {
 
 		// Bottom recent-history strip
 		this.historyLayer = this.container.createDiv({ cls: "brain-history" });
+
+		// Top-right toolbar: create parent / child for the central note
+		this.buildToolbar();
 
 		// Re-render whenever the canvas changes size.
 		this.resizeObserver = new ResizeObserver(() => {
@@ -497,6 +502,42 @@ export class BrainView extends ItemView {
 		}
 	}
 
+	/* --------------------- top-right toolbar --------------------- */
+
+	private buildToolbar() {
+		this.toolbarLayer = this.container.createDiv({ cls: "brain-toolbar" });
+
+		const parentBtn = this.toolbarLayer.createEl("button", {
+			cls: "brain-toolbar-btn",
+			attr: { "aria-label": "Add parent to central note" },
+		});
+		setIcon(parentBtn, "corner-left-up");
+		parentBtn.createSpan({ text: "Parent" });
+		parentBtn.addEventListener("click", () =>
+			this.promptLinkedNote(false)
+		);
+
+		const childBtn = this.toolbarLayer.createEl("button", {
+			cls: "brain-toolbar-btn",
+			attr: { "aria-label": "Add child to central note" },
+		});
+		setIcon(childBtn, "corner-right-down");
+		childBtn.createSpan({ text: "Child" });
+		childBtn.addEventListener("click", () =>
+			this.promptLinkedNote(true)
+		);
+	}
+
+	private promptLinkedNote(asChild: boolean) {
+		if (!this.currentFile) return;
+		const suggestions = this.getExistingNoteSuggestions(
+			this.currentFile.path
+		);
+		new NewNoteModal(this.app, suggestions, async (name) => {
+			await this.createLinkedNote(name, asChild);
+		}).open();
+	}
+
 	/* --------------------- rendering --------------------- */
 
 	render() {
@@ -507,6 +548,10 @@ export class BrainView extends ItemView {
 
 		// Keep recent strip fresh
 		this.renderHistory();
+
+		if (this.toolbarLayer) {
+			this.toolbarLayer.style.display = this.currentFile ? "" : "none";
+		}
 
 		if (!this.currentFile) {
 			this.nodeLayer.createDiv({
