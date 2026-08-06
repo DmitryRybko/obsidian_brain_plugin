@@ -41,34 +41,29 @@ function extractLinkpath(value) {
   return v || null;
 }
 var NewNoteModal = class extends import_obsidian.Modal {
-  constructor(app, suggestions, onSubmit, title = "New note name") {
+  constructor(app, suggestions, onSubmit) {
     super(app);
     __publicField(this, "onSubmit");
     __publicField(this, "suggestions");
-    __publicField(this, "title");
+    __publicField(this, "suggestionLimit", 5);
     __publicField(this, "value", "");
     __publicField(this, "inputEl", null);
+    __publicField(this, "listEl", null);
     this.suggestions = suggestions;
     this.onSubmit = onSubmit;
-    this.title = title;
   }
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h3", { text: this.title });
-    const listId = `brain-note-suggestions-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    if (this.suggestions.length > 0) {
-      const datalist = contentEl.createEl("datalist");
-      datalist.id = listId;
-      for (const s of this.suggestions)
-        datalist.createEl("option", { value: s });
-    }
+    this.containerEl.addClass("brain-new-note-modal-container");
+    contentEl.createEl("h3", { text: "New note name" });
+    this.listEl = contentEl.createDiv({ cls: "brain-suggestion-list" });
     new import_obsidian.Setting(contentEl).addText((text) => {
       this.inputEl = text.inputEl;
-      text.setPlaceholder("Type a new or existing note name");
-      if (this.suggestions.length > 0) {
-        text.inputEl.setAttribute("list", listId);
-      }
-      text.onChange((v) => this.value = v);
+      text.setPlaceholder("Pick above or type a new name");
+      text.onChange((v) => {
+        this.value = v;
+        this.renderSuggestions();
+      });
       text.inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -81,6 +76,33 @@ var NewNoteModal = class extends import_obsidian.Modal {
     new import_obsidian.Setting(contentEl).addButton(
       (b) => b.setButtonText("Create / Link").setCta().onClick(() => this.commit())
     );
+    this.renderSuggestions();
+  }
+  renderSuggestions() {
+    if (!this.listEl) return;
+    this.listEl.empty();
+    const query = this.value.trim().toLowerCase();
+    const matches = this.suggestions.filter((s) => !query || s.toLowerCase().includes(query)).slice(0, this.suggestionLimit);
+    if (matches.length === 0) {
+      this.listEl.style.display = "none";
+      return;
+    }
+    this.listEl.style.display = "";
+    for (const s of matches) {
+      const item = this.listEl.createDiv({
+        cls: "brain-suggestion-item",
+        text: s
+      });
+      item.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        this.value = s;
+        if (this.inputEl) {
+          this.inputEl.value = s;
+          this.inputEl.focus();
+        }
+        this.renderSuggestions();
+      });
+    }
   }
   commit() {
     var _a, _b;
@@ -93,6 +115,7 @@ var NewNoteModal = class extends import_obsidian.Modal {
   onClose() {
     this.contentEl.empty();
     this.inputEl = null;
+    this.listEl = null;
   }
 };
 var BrainView = class extends import_obsidian.ItemView {
@@ -138,16 +161,6 @@ var BrainView = class extends import_obsidian.ItemView {
     this.container.appendChild(this.svg);
     this.nodeLayer = this.container.createDiv({ cls: "brain-node-layer" });
     this.historyLayer = this.container.createDiv({ cls: "brain-history" });
-    this.addAction(
-      "arrow-down",
-      "Create child note",
-      () => this.promptCreateLinkedNote(true)
-    );
-    this.addAction(
-      "arrow-up",
-      "Create parent note",
-      () => this.promptCreateLinkedNote(false)
-    );
     this.resizeObserver = new ResizeObserver(() => {
       if (this.container.clientWidth > 0) this.render();
     });
@@ -180,7 +193,10 @@ var BrainView = class extends import_obsidian.ItemView {
     this.registerEvent(
       this.app.metadataCache.on("changed", () => this.render())
     );
-    this.container.addEventListener("mousemove", (e) => this.onMouseMove(e));
+    this.container.addEventListener(
+      "mousemove",
+      (e) => this.onMouseMove(e)
+    );
     this.container.addEventListener("mouseup", (e) => this.onMouseUp(e));
     this.container.addEventListener("dragover", (e) => e.preventDefault());
     this.container.addEventListener("drop", (e) => this.onDrop(e));
@@ -193,34 +209,6 @@ var BrainView = class extends import_obsidian.ItemView {
     (_a = this.resizeObserver) == null ? void 0 : _a.disconnect();
     this.resizeObserver = null;
     this.contentEl.empty();
-  }
-  /* --------------------- pane (three-dots) menu --------------------- */
-  onPaneMenu(menu, source) {
-    super.onPaneMenu(menu, source);
-    menu.addItem(
-      (item) => item.setTitle("Create child note").setIcon("arrow-down").setDisabled(!this.currentFile).onClick(() => this.promptCreateLinkedNote(true))
-    );
-    menu.addItem(
-      (item) => item.setTitle("Create parent note").setIcon("arrow-up").setDisabled(!this.currentFile).onClick(() => this.promptCreateLinkedNote(false))
-    );
-    menu.addSeparator();
-  }
-  promptCreateLinkedNote(asChild) {
-    if (!this.currentFile) {
-      new import_obsidian.Notice("Open a note in the Brain Canvas first.");
-      return;
-    }
-    const suggestions = this.getExistingNoteSuggestions(
-      this.currentFile.path
-    );
-    new NewNoteModal(
-      this.app,
-      suggestions,
-      (name) => {
-        void this.createLinkedNote(name, asChild);
-      },
-      asChild ? "New child note" : "New parent note"
-    ).open();
   }
   /* --------------------- relationship lookups --------------------- */
   getParents(file) {
@@ -427,7 +415,9 @@ var BrainView = class extends import_obsidian.ItemView {
     this.makeNode(this.currentFile, cx, centerY, true);
     this.layoutRow(parents, W, parentsY);
     this.layoutChildrenTwoColumns(children, W, childrenY);
-    window.requestAnimationFrame(() => this.drawLinks(parents, children));
+    window.requestAnimationFrame(
+      () => this.drawLinks(parents, children)
+    );
   }
   layoutRow(files, W, y) {
     const n = files.length;
