@@ -129,6 +129,7 @@ var BrainView = class extends import_obsidian.ItemView {
     __publicField(this, "currentFile", null);
     __publicField(this, "pointEls", /* @__PURE__ */ new Map());
     __publicField(this, "resizeObserver", null);
+    __publicField(this, "toolbarLayer");
     __publicField(this, "recentPaths", []);
     __publicField(this, "historyLimit", 20);
     __publicField(this, "drag", {
@@ -161,6 +162,7 @@ var BrainView = class extends import_obsidian.ItemView {
     this.container.appendChild(this.svg);
     this.nodeLayer = this.container.createDiv({ cls: "brain-node-layer" });
     this.historyLayer = this.container.createDiv({ cls: "brain-history" });
+    this.buildToolbar();
     this.resizeObserver = new ResizeObserver(() => {
       if (this.container.clientWidth > 0) this.render();
     });
@@ -388,6 +390,39 @@ var BrainView = class extends import_obsidian.ItemView {
       item.addEventListener("click", () => this.openNote(file));
     }
   }
+  /* --------------------- top-right toolbar --------------------- */
+  buildToolbar() {
+    this.toolbarLayer = this.container.createDiv({ cls: "brain-toolbar" });
+    const parentBtn = this.toolbarLayer.createEl("button", {
+      cls: "brain-toolbar-btn",
+      attr: { "aria-label": "Add parent to central note" }
+    });
+    (0, import_obsidian.setIcon)(parentBtn, "corner-left-up");
+    parentBtn.createSpan({ text: "Parent" });
+    parentBtn.addEventListener(
+      "click",
+      () => this.promptLinkedNote(false)
+    );
+    const childBtn = this.toolbarLayer.createEl("button", {
+      cls: "brain-toolbar-btn",
+      attr: { "aria-label": "Add child to central note" }
+    });
+    (0, import_obsidian.setIcon)(childBtn, "corner-right-down");
+    childBtn.createSpan({ text: "Child" });
+    childBtn.addEventListener(
+      "click",
+      () => this.promptLinkedNote(true)
+    );
+  }
+  promptLinkedNote(asChild) {
+    if (!this.currentFile) return;
+    const suggestions = this.getExistingNoteSuggestions(
+      this.currentFile.path
+    );
+    new NewNoteModal(this.app, suggestions, async (name) => {
+      await this.createLinkedNote(name, asChild);
+    }).open();
+  }
   /* --------------------- rendering --------------------- */
   render() {
     if (!this.svg || !this.nodeLayer) return;
@@ -395,6 +430,9 @@ var BrainView = class extends import_obsidian.ItemView {
     while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild);
     this.pointEls.clear();
     this.renderHistory();
+    if (this.toolbarLayer) {
+      this.toolbarLayer.style.display = this.currentFile ? "" : "none";
+    }
     if (!this.currentFile) {
       this.nodeLayer.createDiv({
         cls: "brain-empty",
