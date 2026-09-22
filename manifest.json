@@ -1,9 +1,10 @@
 {
-  "id": "brain-canvas",
-  "name": "Brain Canvas",
-  "version": "1.0.4",
-  "minAppVersion": "1.4.0",
-  "description": "A The Brain-style canvas where notes are linked through a 'parents' frontmatter property.",
-  "author": "You",
-  "isDesktopOnly": false
+	"id": "brain-canvas",
+	"name": "Brain Canvas",
+	"version": "1.2.0",
+	"minAppVersion": "1.4.0",
+	"description": "A TheBrain-style canvas of parents, children, siblings and jumps, linked through frontmatter properties.",
+	"author": "Dmitry Rybko",
+	"authorUrl": "https://github.com/DmitryRybko",
+	"isDesktopOnly": false
 }
