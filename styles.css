@@ -1,15 +1,31 @@
-.brain-root {
+/* ---------- root & scrolling stage ---------- */
+
+.brain-root.view-content {
+  position: relative;
   padding: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 .brain-canvas {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
   background: var(--background-primary);
 }
+
+.brain-stage {
+  position: relative;
+  width: 100%;
+  height: var(--brain-stage-height, 100%);
+}
+
+.brain-root .is-hidden {
+  display: none !important;
+}
+
+/* ---------- links ---------- */
 
 .brain-svg {
   position: absolute;
@@ -17,6 +33,7 @@
   width: 100%;
   height: 100%;
   z-index: 1;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -24,6 +41,19 @@
   stroke: var(--text-muted);
   stroke-width: 1px;
   fill: none;
+  transition: stroke 120ms ease, stroke-width 120ms ease;
+}
+
+/* Jumps and siblings: understated horizontal links, as in TheBrain. */
+.brain-link-jump {
+  stroke-dasharray: 5 4;
+  opacity: 0.8;
+}
+
+.brain-link-sibling {
+  stroke: var(--text-faint);
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
 }
 
 .brain-link-temp {
@@ -31,14 +61,81 @@
   stroke: var(--text-accent);
 }
 
+/* Wide invisible stroke that makes a thin link easy to click or tap. */
+.brain-link-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+body.is-mobile .brain-link-hit {
+  stroke-width: 26px;
+}
+
+.brain-link-group:not(.is-static):hover .brain-link {
+  stroke: var(--text-normal);
+  stroke-width: 2px;
+}
+
+.brain-link-group.is-selected .brain-link {
+  stroke: var(--text-accent);
+  stroke-width: 2px;
+}
+
+.brain-link-delete {
+  position: absolute;
+  left: var(--brain-x);
+  top: var(--brain-y);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-primary);
+  border: 1.5px solid var(--color-red);
+  color: var(--color-red);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.brain-link-delete:hover {
+  background: var(--color-red);
+  color: var(--text-on-accent);
+}
+
+.brain-link-delete .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+body.is-mobile .brain-link-delete {
+  width: 36px;
+  height: 36px;
+}
+
+/* ---------- nodes ---------- */
+
 .brain-node-layer {
   position: absolute;
   inset: 0;
   z-index: 2;
+  pointer-events: none; /* let clicks reach the links underneath */
+}
+
+.brain-node-layer > * {
+  pointer-events: auto;
 }
 
 .brain-node {
   position: absolute;
+  left: var(--brain-x);
+  top: var(--brain-y);
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
@@ -46,27 +143,52 @@
   gap: 1px;
 }
 
+/* Side columns: the edge facing the central note is anchored at x. */
+.brain-node.brain-anchor-end {
+  transform: translate(-100%, -50%);
+  align-items: flex-end;
+}
+
+.brain-node.brain-anchor-start {
+  transform: translate(0, -50%);
+  align-items: flex-start;
+}
+
+.brain-node-row {
+  display: flex;
+  align-items: center;
+}
+
 .brain-label {
+  box-sizing: border-box;
   cursor: pointer;
   padding: 3px 10px;
   border-radius: 6px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   font-size: var(--font-ui-small);
-  /* children: truncate with ellipsis */
+  /* truncate with ellipsis; the full name is in the title tooltip */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: var(--brain-label-max, 200px);
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .brain-label:hover {
   background: var(--background-modifier-hover);
 }
 
+.brain-stage.is-compact .brain-label {
+  --brain-label-max: 140px;
+}
+
 /* Central element: always wrap if long */
-.brain-central .brain-label {
+.brain-stage .brain-central .brain-label {
+  /* never wider than the space between the side columns */
+  --brain-label-max: min(220px, calc(var(--brain-center-width, 400px) - 8px));
   font-weight: 600;
   border-color: var(--text-accent);
   background: var(--background-primary-alt);
@@ -78,65 +200,55 @@
   text-overflow: clip;
 }
 
-/* Child tooltip on hover: show full name */
-.brain-node:not(.brain-central) .brain-label {
-  position: relative;
+/* Jumps / siblings: shortened to fit their column (full name on hover
+   or press-and-hold). */
+.brain-stage .brain-side .brain-label {
+  --brain-label-max: calc(var(--brain-side-width, 180px) - 14px);
 }
 
-.brain-node:not(.brain-central) .brain-label::after {
-  content: attr(data-fullname);
+.brain-stage.is-compact .brain-side .brain-label {
+  padding: 2px 7px;
+  font-size: var(--font-ui-smaller);
+}
+
+/* Siblings are context, not relations of the central note. */
+.brain-role-sibling .brain-label {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* Full-name bubble for shortened labels */
+.brain-node-layer > .brain-tooltip {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 8px;
+  left: var(--brain-x);
+  top: var(--brain-y);
+  transform: translate(-50%, calc(-100% - 8px));
+  z-index: 5;
+  max-width: min(260px, 70vw);
   padding: 4px 10px;
+  border-radius: 6px;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  box-shadow: var(--shadow-s);
   font-size: var(--font-ui-smaller);
-  font-weight: normal;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
   text-align: center;
-  max-width: 260px;
-  min-width: 100px;
-  z-index: 20;
-  opacity: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
-  transition: opacity 0.15s ease;
 }
 
-.brain-node:not(.brain-central) .brain-label:hover::after {
-  opacity: 1;
-}
+/* ---------- connection points ---------- */
 
 .brain-point {
+  position: relative;
   width: 9px;
   height: 9px;
   border-radius: 50%;
   background: var(--background-primary);
   border: 1px solid var(--text-muted);
   cursor: crosshair;
-}
-
-.brain-point:hover {
-  background: var(--text-accent);
-  border-color: var(--text-accent);
-}
-
-.brain-empty {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--text-muted);
-}
-
-.brain-point-connected {
-  background-color: var(--text-muted);
-  border-color: var(--interactive-accent);
+  touch-action: none; /* dragging a point must not scroll the canvas */
 }
 
 .brain-point-top {
@@ -146,6 +258,188 @@
 .brain-point-bottom {
   margin-top: -3px;
 }
+
+/* Side gates of the central note (jumps / siblings) */
+.brain-point-left {
+  margin-right: -3px;
+}
+
+.brain-point-right {
+  margin-left: -3px;
+}
+
+/* Larger hit area, extended away from the label. */
+.brain-point::before {
+  content: "";
+  position: absolute;
+}
+
+.brain-point-top::before {
+  inset: -12px -10px -2px -10px;
+}
+
+.brain-point-bottom::before {
+  inset: -2px -10px -12px -10px;
+}
+
+.brain-point-left::before {
+  inset: -10px -2px -10px -12px;
+}
+
+.brain-point-right::before {
+  inset: -10px -12px -10px -2px;
+}
+
+body.is-mobile .brain-point-left::before {
+  inset: -16px -2px -16px -18px;
+}
+
+body.is-mobile .brain-point-right::before {
+  inset: -16px -18px -16px -2px;
+}
+
+body.is-mobile .brain-point-top::before {
+  inset: -18px -16px -2px -16px;
+}
+
+body.is-mobile .brain-point-bottom::before {
+  inset: -2px -16px -18px -16px;
+}
+
+.brain-point-connected {
+  background-color: var(--text-muted);
+  border-color: var(--interactive-accent);
+}
+
+.brain-point:hover {
+  background: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+/* ---------- toolbar: filters (left), actions (right) ---------- */
+
+.brain-toolbar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.brain-toolbar > * {
+  pointer-events: auto;
+}
+
+.brain-filters {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  min-width: 0;
+  overflow-x: auto; /* scrolls instead of overflowing on narrow phones */
+  scrollbar-width: none;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+
+.brain-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.brain-toolbar button.brain-filter {
+  flex: none;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  user-select: none;
+}
+
+.brain-toolbar button.brain-filter:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.brain-toolbar button.brain-filter.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.brain-filter-count:not(:empty) {
+  margin-left: 5px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.brain-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.brain-toolbar button.brain-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: none;
+}
+
+.brain-toolbar button.brain-toolbar-btn:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.brain-toolbar-btn .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Mobile: pin the toolbar to the top edge, keep touch targets large. */
+body.is-mobile .brain-toolbar {
+  top: 2px;
+  left: 6px;
+  right: 6px;
+}
+
+body.is-mobile .brain-toolbar button.brain-filter {
+  height: 36px;
+  padding: 0 8px;
+}
+
+body.is-mobile .brain-actions {
+  gap: 4px;
+}
+
+body.is-mobile .brain-toolbar button.brain-toolbar-btn {
+  width: 38px;
+  height: 38px;
+}
+
+body.is-mobile .brain-toolbar-btn .svg-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- history strip ---------- */
 
 .brain-history {
   position: absolute;
@@ -158,16 +452,24 @@
   background: var(--background-primary);
 }
 
+/* Lift the strip above Obsidian's bottom menu on mobile.
+   The value comes from the "Mobile history offset" setting. */
+body.is-mobile .brain-history {
+  bottom: var(--brain-history-offset, 60px);
+}
+
 .brain-history-row {
   display: flex;
   align-items: center;
   gap: 6px;
   overflow-x: auto;
-  justify-content: flex-end; /* keeps newest visually toward the right edge */
   scrollbar-width: thin;
+  /* the view scrolls this row to the newest (rightmost) item */
 }
 
 .brain-history-item {
+  flex: none;
+  max-width: 180px;
   cursor: pointer;
   padding: 2px 8px;
   border-radius: 999px;
@@ -175,6 +477,8 @@
   border: 1px solid var(--background-modifier-border);
   font-size: var(--font-ui-smaller);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: none;
 }
 
@@ -183,13 +487,23 @@
   border-color: var(--interactive-accent);
 }
 
-/* Lift the history strip above Obsidian's bottom menu on mobile.
-   Overridden inline by the "Mobile history offset" plugin setting. */
-body.is-mobile .brain-history {
-  bottom: 60px;
+.brain-history-item.is-current {
+  border-color: var(--text-accent);
+  font-weight: 600;
 }
 
-/* ---- new-note modal: suggestion list ---- */
+/* ---------- empty state ---------- */
+
+.brain-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------- new-note modal: suggestion list ---------- */
 
 .brain-suggestion-list {
   display: flex;
@@ -198,6 +512,10 @@ body.is-mobile .brain-history {
   margin: 4px 0 10px;
   max-height: 215px; /* room for about 5 items */
   overflow-y: auto;
+}
+
+.brain-suggestion-list.is-hidden {
+  display: none;
 }
 
 .brain-suggestion-item {
@@ -226,56 +544,14 @@ body.is-mobile .brain-new-note-modal-container {
   padding-top: 32px;
 }
 
-/* ---- top-right toolbar: parent / child creation ---- */
+/* ---------- settings ---------- */
 
-.brain-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 4;
-  display: flex;
-  gap: 6px;
+input.brain-input-invalid {
+  border-color: var(--text-error);
 }
 
-.brain-toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border-radius: 6px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal);
-  cursor: pointer;
-  user-select: none;
-  box-shadow: none;
-}
-
-.brain-toolbar-btn:hover {
-  background: var(--background-modifier-hover);
-  border-color: var(--interactive-accent);
-}
-
-.brain-toolbar-btn .svg-icon {
-  width: 16px;
-  height: 16px;
-}
-
-/* Mobile: pin the toolbar right at the top edge so it clears
-   the parents row, keep touch targets comfortably large. */
-body.is-mobile .brain-toolbar {
-  top: 2px;
-  right: 6px;
-}
-
-body.is-mobile .brain-toolbar-btn {
-  width: 40px;
-  height: 40px;
-}
-
-body.is-mobile .brain-toolbar-btn .svg-icon {
-  width: 20px;
-  height: 20px;
+@media (prefers-reduced-motion: reduce) {
+  .brain-link {
+    transition: none;
+  }
 }

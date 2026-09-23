@@ -1,6 +1,6 @@
 {
   "name": "brain-canvas",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "scripts": {
     "dev": "node esbuild.config.mjs --watch",
     "build": "node esbuild.config.mjs"
